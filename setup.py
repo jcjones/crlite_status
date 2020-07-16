@@ -19,7 +19,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     python_requires=">=3.7",
-    install_requires=["rich", "requests"],
+    install_requires=["requests>=2.10", "rich>=3.0"],
     packages=["crlite_status"],
     entry_points={"console_scripts": ["crlite_status=crlite_status.status:main"]},
 )
