@@ -88,4 +88,6 @@ You can also dig into CRL audit data with the `--crl` flag:
 
 ```
 
-When using the `--crl` option, more fine-grained details can be obtained from the JSON files in `~/.crlite_db/audits/`.
+When using the `--crl` option, more fine-grained details can be obtained from the JSON files
+in `~/.crlite_db/audits/`, or you can use `--crl-details path_to_file.html` and get a rich-text
+version.

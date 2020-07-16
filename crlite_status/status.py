@@ -17,6 +17,7 @@ kIdentifierFormat = re.compile(r"(\d{8}-\d+)/?")
 parser = argparse.ArgumentParser()
 parser.add_argument("count", help="Number of entries", type=int)
 parser.add_argument("--crl", help="Evaluate CRL audits", action="store_true")
+parser.add_argument("--crl-details", help="Path for HTML details", type=Path)
 parser.add_argument(
     "--bucket-url",
     default="https://storage.googleapis.com/storage/v1/b/crlite_filters_staging/",
@@ -169,7 +170,7 @@ def main():
             run_data["coverage_period"] = str(ts - previous_timestamp)
         previous_timestamp = ts
 
-        if args.crl:
+        if args.crl or args.crl_details:
             audit_dir_local = args.auditdb.expanduser()
             audit_dir_local.mkdir(exist_ok=True, parents=True)
             local_path = audit_dir_local / f"{run_id}.json"
@@ -187,7 +188,7 @@ def main():
 
     all_runs = sorted(run_info.keys(), key=normalize_identifier, reverse=True)
 
-    size_table = Table(title="Data sizes", show_header=True)
+    size_table = Table(title="Recent Run Data", show_header=True)
     size_table.add_column("Run ID")
     size_table.add_column("Run Time")
     size_table.add_column("Filter")
@@ -211,8 +212,8 @@ def main():
         )
     console.print(size_table)
 
-    if args.crl:
-        detail_console = Console(file=io.StringIO())
+    if args.crl or args.crl_details:
+        detail_console = Console(file=io.StringIO(), record=True)
 
         for run_id in all_runs:
             issuer_to_crl_audit = {}
@@ -223,10 +224,12 @@ def main():
                     issuer_to_crl_audit[entry["IssuerSubject"]] = []
                 issuer_to_crl_audit[entry["IssuerSubject"]].append(entry)
 
-            table = Table(title=f"{run_id} audit entries", show_header=True)
+            table = Table(title=f"{run_id} CRL Audit Entries", show_header=True)
             table.add_column("Issuer")
             table.add_column("Kind")
             table.add_column("Count")
+
+            detail_console.rule(f"{run_id} CRL Audit Entries")
 
             for issuerSubject in issuer_to_crl_audit:
                 for kind, entries in itertools.groupby(
@@ -236,9 +239,14 @@ def main():
                     table.add_row(issuerSubject, kind, str(len(list(entries))))
 
                 for entry in issuer_to_crl_audit[issuerSubject]:
-                    detail_console.log(entry)
+                    detail_console.print(entry)
 
             console.print(table)
+            detail_console.print(table)
+
+        if args.crl_details:
+            console.log(f"Writing CRL details to {args.crl_details}")
+            detail_console.save_html(args.crl_details)
 
 
 if __name__ == "__main__":
