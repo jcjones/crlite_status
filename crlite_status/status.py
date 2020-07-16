@@ -108,6 +108,17 @@ def size_to_str(sz_str):
     return f"{sz:,} B"
 
 
+def is_enrolled(issuer_subject, *, runinfo={}):
+    if "enrolled" not in runinfo:
+        return "Unknown"
+    for issuer in runinfo["enrolled"]:
+        if issuer_subject == issuer["pubKeyHash"]:
+            if issuer["enrolled"]:
+                return "✅"
+            return "❌"
+    return "Not Found"
+
+
 def main():
     args = parser.parse_args()
 
@@ -173,16 +184,31 @@ def main():
         if args.crl or args.crl_details:
             audit_dir_local = args.auditdb.expanduser()
             audit_dir_local.mkdir(exist_ok=True, parents=True)
-            local_path = audit_dir_local / f"{run_id}.json"
+            local_audit_path = audit_dir_local / f"{run_id}-crl-audit.json"
             try:
-                if not local_path.is_file():
+                if not local_audit_path.is_file():
                     download_from_google_cloud(
-                        args.bucket_url, Path(run_id) / "crl-audit.json", local_path
+                        args.bucket_url,
+                        Path(run_id) / "crl-audit.json",
+                        local_audit_path,
                     )
             except FileNotFoundException:
                 pass
-            with local_path.open("r") as jf:
+            with local_audit_path.open("r") as jf:
                 run_data["crl_audit"] = json.load(jf)
+
+            local_enrolled_path = audit_dir_local / f"{run_id}-enrolled.json"
+            try:
+                if not local_enrolled_path.is_file():
+                    download_from_google_cloud(
+                        args.bucket_url,
+                        Path(run_id) / "enrolled.json",
+                        local_enrolled_path,
+                    )
+            except FileNotFoundException:
+                pass
+            with local_enrolled_path.open("r") as jf:
+                run_data["enrolled"] = json.load(jf)
 
         run_info[run_id] = run_data
 
@@ -228,6 +254,7 @@ def main():
             table.add_column("Issuer")
             table.add_column("Kind")
             table.add_column("Count")
+            table.add_column("Enrolled")
 
             detail_console.rule(f"{run_id} CRL Audit Entries")
 
@@ -236,7 +263,15 @@ def main():
                     sorted(issuer_to_crl_audit[issuerSubject], key=lambda x: x["Kind"]),
                     key=lambda x: x["Kind"],
                 ):
-                    table.add_row(issuerSubject, kind, str(len(list(entries))))
+                    entries_list = list(entries)
+                    num_entries = len(entries_list)
+                    first_entry = entries_list[0]
+                    table.add_row(
+                        issuerSubject,
+                        kind,
+                        str(num_entries),
+                        is_enrolled(first_entry["Issuer"], runinfo=run_info[run_id]),
+                    )
 
                 for entry in issuer_to_crl_audit[issuerSubject]:
                     detail_console.print(entry)
