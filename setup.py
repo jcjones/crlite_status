@@ -12,7 +12,7 @@ setup(
         "Programming Language :: Python :: 3",
     ],
     keywords="bloom filter cascade multi level mlbf crlite",
-    url="http://github.com/jcjones/crlite-status",
+    url="http://github.com/jcjones/crlite_status",
     author="J.C. Jones",
     author_email="jc@insufficient.coffee",
     license="Mozilla Public License 2.0 (MPL 2.0)",
