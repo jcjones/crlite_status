@@ -2,8 +2,8 @@ from setuptools import setup
 
 
 setup(
-    name="crlite-status",
-    version="0.0.2",
+    name="crlite_status",
+    version="0.0.3",
     description="Query CRLite status",
     long_description="Use this tool get information about recent CRLite runs",
     classifiers=[
