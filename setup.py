@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="crlite_status",
-    version="0.0.3",
+    version="0.0.4",
     description="Query CRLite status",
     long_description="Use this tool get information about recent CRLite runs",
     classifiers=[

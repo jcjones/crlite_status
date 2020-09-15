@@ -19,15 +19,34 @@ parser.add_argument("count", help="Number of entries", type=int)
 parser.add_argument("--crl", help="Evaluate CRL audits", action="store_true")
 parser.add_argument("--crl-details", help="Path for HTML details", type=Path)
 parser.add_argument(
-    "--bucket-url",
-    default="https://storage.googleapis.com/storage/v1/b/crlite_filters_staging/",
-)
-parser.add_argument(
     "--auditdb",
     help="Path to store CRL audits",
     type=Path,
     default=Path("~/.crlite_db/audits/"),
 )
+group = parser.add_mutually_exclusive_group()
+group.add_argument(
+    "--bucket-url",
+    default="https://storage.googleapis.com/storage/v1/b/crlite-filters-prod/",
+)
+group.add_argument(
+    "--dev",
+    action="store_true",
+    help="Read from the Dev environment",
+)
+group.add_argument(
+    "--stage",
+    action="store_true",
+    help="Read from the Stage environment",
+)
+
+
+def get_bucket_url(args):
+    if args.dev:
+        return "https://storage.googleapis.com/storage/v1/b/crlite_filters_staging/"
+    if args.stage:
+        return "https://storage.googleapis.com/storage/v1/b/crlite-filters-stage/"
+    return args.bucket_url
 
 
 class FileNotFoundException(Exception):
@@ -47,10 +66,10 @@ def list_google_storage_directories(base_url):
 
 
 def normalize_identifier(s):
-    """ The first part of the identifier is a date with no separators and is
-        obvious to sort. The second part is a number which is generally a
-        single digit, but in a degenerate case could end up with multiple, so
-        we pad it here.
+    """The first part of the identifier is a date with no separators and is
+    obvious to sort. The second part is a number which is generally a
+    single digit, but in a degenerate case could end up with multiple, so
+    we pad it here.
     """
     parts = s.rstrip("/").split("-")
     return f"{parts[0]}{int(parts[1]):06d}"
@@ -128,7 +147,7 @@ def main():
 
     previous_timestamp = None
 
-    for run_id in get_run_identifiers(args.bucket_url, count=args.count):
+    for run_id in get_run_identifiers(get_bucket_url(args), count=args.count):
         run_data = {
             "filter_size": None,
             "stash_size": None,
@@ -141,7 +160,7 @@ def main():
         }
         stats = json.loads(
             download_from_google_cloud_to_string(
-                args.bucket_url, Path(run_id) / "mlbf" / "stats.json"
+                get_bucket_url(args), Path(run_id) / "mlbf" / "stats.json"
             )
         )
         run_data["filter_layers"] = f"{stats['mlbf_layers']}"
@@ -156,24 +175,26 @@ def main():
             run_data["filter_size"] = size_to_str(stats["mlbf_filesize"])
         else:
             filter_metadata = metadata_from_google_cloud(
-                args.bucket_url, Path(run_id) / "mlbf" / "filter"
+                get_bucket_url(args), Path(run_id) / "mlbf" / "filter"
             )
             run_data["filter_size"] = size_to_str(filter_metadata["size"])
 
         if "stash_filesize" in stats:
             run_data["stash_size"] = size_to_str(stats["stash_filesize"])
+            run_data["stash_num_issuers"] = str(stats["stash_num_issuers"])
         else:
             try:
                 stash_metadata = metadata_from_google_cloud(
-                    args.bucket_url, Path(run_id) / "mlbf" / "filter.stash"
+                    get_bucket_url(args), Path(run_id) / "mlbf" / "filter.stash"
                 )
                 run_data["stash_size"] = size_to_str(stash_metadata["size"])
+                run_data["stash_num_issuers"] = "n/a"
             except FileNotFoundException:
                 pass
 
         ts = datetime.fromisoformat(
             download_from_google_cloud_to_string(
-                args.bucket_url, Path(run_id) / "timestamp"
+                get_bucket_url(args), Path(run_id) / "timestamp"
             )
         ).replace(tzinfo=timezone.utc)
         run_data["timestamp"] = ts
@@ -181,34 +202,33 @@ def main():
             run_data["coverage_period"] = str(ts - previous_timestamp)
         previous_timestamp = ts
 
-        if args.crl or args.crl_details:
-            audit_dir_local = args.auditdb.expanduser()
-            audit_dir_local.mkdir(exist_ok=True, parents=True)
-            local_audit_path = audit_dir_local / f"{run_id}-crl-audit.json"
-            try:
-                if not local_audit_path.is_file():
-                    download_from_google_cloud(
-                        args.bucket_url,
-                        Path(run_id) / "crl-audit.json",
-                        local_audit_path,
-                    )
-            except FileNotFoundException:
-                pass
-            with local_audit_path.open("r") as jf:
-                run_data["crl_audit"] = json.load(jf)
+        audit_dir_local = args.auditdb.expanduser()
+        audit_dir_local.mkdir(exist_ok=True, parents=True)
+        local_audit_path = audit_dir_local / f"{run_id}-crl-audit.json"
+        try:
+            if not local_audit_path.is_file():
+                download_from_google_cloud(
+                    get_bucket_url(args),
+                    Path(run_id) / "crl-audit.json",
+                    local_audit_path,
+                )
+        except FileNotFoundException:
+            pass
+        with local_audit_path.open("r") as jf:
+            run_data["crl_audit"] = json.load(jf)
 
-            local_enrolled_path = audit_dir_local / f"{run_id}-enrolled.json"
-            try:
-                if not local_enrolled_path.is_file():
-                    download_from_google_cloud(
-                        args.bucket_url,
-                        Path(run_id) / "enrolled.json",
-                        local_enrolled_path,
-                    )
-            except FileNotFoundException:
-                pass
-            with local_enrolled_path.open("r") as jf:
-                run_data["enrolled"] = json.load(jf)
+        local_enrolled_path = audit_dir_local / f"{run_id}-enrolled.json"
+        try:
+            if not local_enrolled_path.is_file():
+                download_from_google_cloud(
+                    get_bucket_url(args),
+                    Path(run_id) / "enrolled.json",
+                    local_enrolled_path,
+                )
+        except FileNotFoundException:
+            pass
+        with local_enrolled_path.open("r") as jf:
+            run_data["enrolled"] = json.load(jf)
 
         run_info[run_id] = run_data
 
@@ -219,19 +239,27 @@ def main():
     size_table.add_column("Run Time")
     size_table.add_column("Filter")
     size_table.add_column("Filter Layers")
+    size_table.add_column("Enrolled Issuers")
     size_table.add_column("Stash")
     size_table.add_column("Known Revoked")
     size_table.add_column("Known Not Revoked")
     size_table.add_column("Period Covered")
     previous_timestamp = None
     for run_id in all_runs:
+        if "enrolled" in run_info[run_id]:
+            enrolled_len = str(
+                len(list(filter(lambda x: x["enrolled"], run_info[run_id]["enrolled"])))
+            )
+        else:
+            enrolled_len = "n/a"
 
         size_table.add_row(
             run_id,
             f"{run_info[run_id]['timestamp']:%Y-%m-%d %H:%M}Z",
             run_info[run_id]["filter_size"],
             run_info[run_id]["filter_layers"],
-            run_info[run_id]["stash_size"],
+            enrolled_len,
+            f"{run_info[run_id]['stash_size']} ({run_info[run_id]['stash_num_issuers']} issuers)",
             run_info[run_id]["knownrevoked"],
             run_info[run_id]["knownnotrevoked"],
             run_info[run_id]["coverage_period"],
