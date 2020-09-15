@@ -12,10 +12,11 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run: pip install --editable .
-      - run: pip install black
       - run:
          name: Check format with Black
-         command: black --check .
+         command: |
+            pip install "black==20.8b1"
+            python -m black --check .
       - run:
           name: run tests
           command: |
