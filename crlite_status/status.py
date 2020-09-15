@@ -30,10 +30,14 @@ group.add_argument(
     default="https://storage.googleapis.com/storage/v1/b/crlite-filters-prod/",
 )
 group.add_argument(
-    "--dev", action="store_true", help="Read from the Dev environment",
+    "--dev",
+    action="store_true",
+    help="Read from the Dev environment",
 )
 group.add_argument(
-    "--stage", action="store_true", help="Read from the Stage environment",
+    "--stage",
+    action="store_true",
+    help="Read from the Stage environment",
 )
 
 
@@ -62,10 +66,10 @@ def list_google_storage_directories(base_url):
 
 
 def normalize_identifier(s):
-    """ The first part of the identifier is a date with no separators and is
-        obvious to sort. The second part is a number which is generally a
-        single digit, but in a degenerate case could end up with multiple, so
-        we pad it here.
+    """The first part of the identifier is a date with no separators and is
+    obvious to sort. The second part is a number which is generally a
+    single digit, but in a degenerate case could end up with multiple, so
+    we pad it here.
     """
     parts = s.rstrip("/").split("-")
     return f"{parts[0]}{int(parts[1]):06d}"
