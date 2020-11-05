@@ -58,11 +58,21 @@ def _item_to_value(iterator, item):
 
 
 def list_google_storage_directories(base_url):
-    params = {"projection": "noAcl", "delimiter": "/"}
-    resp = requests.get(urllib.parse.urljoin(base_url, "o"), params=params)
-    resp.raise_for_status()
+    pageToken = None
+    dirs = []
+    while True:
+        params = {"projection": "noAcl", "delimiter": "/"}
+        if pageToken:
+            params["pageToken"] = pageToken
 
-    return resp.json()["prefixes"]
+        resp = requests.get(urllib.parse.urljoin(base_url, "o"), params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        dirs.extend(data["prefixes"])
+
+        if "nextPageToken" not in data:
+            return dirs
+        pageToken = data["nextPageToken"]
 
 
 def normalize_identifier(s):
