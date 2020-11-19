@@ -300,11 +300,15 @@ def main():
                     }
                 issuer_to_crl_audit[entry["IssuerSubject"]]["crls"].append(entry)
 
-            table = Table(title=f"{run_id} CRL Audit Entries", show_header=True)
+            table = Table(
+                title=f"{run_id} CRL Audit Entries by Issuer/Status", show_header=True
+            )
             table.add_column("Issuer")
-            table.add_column("Kind")
-            table.add_column("Count")
             table.add_column("Enrolled")
+            table.add_column("Number of Failed CRLs")
+            table.add_column("Number of Recovered CRLs")
+            table.add_column("Number of Updated CRLs")
+            table.add_column("Number of CRLs")
 
             detail_console.rule(f"{run_id} CRL Audit Entries")
 
@@ -314,32 +318,48 @@ def main():
                     runinfo=run_info[run_id],
                 )
 
-                for kind, crls in itertools.groupby(
-                    sorted(
-                        issuer_to_crl_audit[issuerSubject]["crls"],
-                        key=lambda x: x["Kind"],
-                    ),
-                    key=lambda x: x["Kind"],
-                ):
-                    num_entries = len(list(crls))
-                    table.add_row(
-                        issuerSubject,
-                        kind,
-                        str(num_entries),
-                        enrolled,
-                    )
+                # for kind, crls in itertools.groupby(
+                #     sorted(
+                #         issuer_to_crl_audit[issuerSubject]["crls"],
+                #         key=lambda x: x["Kind"],
+                #     ),
+                #     key=lambda x: x["Kind"],
+                # ):
+                #     num_entries = len(list(crls))
+                #     table.add_row(
+                #         issuerSubject,
+                #         kind,
+                #         enrolled,
+                #         str(num_entries),
+                #     )
 
-                issuer_table = Table(title=f"{issuerSubject} CRLs", show_header=True)
+                num_failed = 0
+                num_recovered = 0
+                num_updated = 0
+                num_total = 0
+
+                issuer_table = Table(
+                    title=f"{issuerSubject} CRLs - {enrolled}", show_header=True
+                )
                 issuer_table.add_column("URL")
                 issuer_table.add_column("Statuses")
-                issuer_table.add_column("Enrolled")
                 issuer_table.add_column("Details")
 
                 for url, entries_grp in itertools.groupby(
                     issuer_to_crl_audit[issuerSubject]["crls"], key=lambda x: x["Url"]
                 ):
+                    num_total += 1
+
                     entries = list(entries_grp)
                     statuses = list(map(lambda x: x["Kind"], entries))
+
+                    if "Valid, Processed" in statuses:
+                        if len(statuses) == 1:
+                            num_updated += 1
+                        else:
+                            num_recovered += 1
+                    else:
+                        num_failed += 1
 
                     if (
                         len(statuses) == 1
@@ -351,10 +371,18 @@ def main():
                     issuer_table.add_row(
                         url,
                         f"{statuses}",
-                        enrolled,
                         f"{entries}",
                     )
                     detail_console.print(issuer_table)
+
+                table.add_row(
+                    issuerSubject,
+                    enrolled,
+                    f"{num_failed}",
+                    f"{num_recovered}",
+                    f"{num_updated}",
+                    f"{num_total}",
+                )
 
             console.print(table)
             summary_tables.append(table)
