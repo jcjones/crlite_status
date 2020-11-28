@@ -38,11 +38,6 @@ group.add_argument(
     default="https://storage.googleapis.com/storage/v1/b/crlite-filters-prod/",
 )
 group.add_argument(
-    "--dev",
-    action="store_true",
-    help="Read from the Dev environment",
-)
-group.add_argument(
     "--stage",
     action="store_true",
     help="Read from the Stage environment",
@@ -50,8 +45,6 @@ group.add_argument(
 
 
 def get_bucket_url(args):
-    if args.dev:
-        return "https://storage.googleapis.com/storage/v1/b/crlite_filters_staging/"
     if args.stage:
         return "https://storage.googleapis.com/storage/v1/b/crlite-filters-stage/"
     return args.bucket_url
