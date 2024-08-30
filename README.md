@@ -1,3 +1,9 @@
+
+NOTE: This tool is unmaintained, though at least somewhat still works. The official mechanism
+for querying CRLite is now the [`rust-query-crlite` tool](https://github.com/mozilla/crlite/tree/main/rust-query-crlite):
+
+[See the Wiki](https://github.com/mozilla/crlite/wiki#how-can-i-query-my-crlite-filter)
+
 # Query CRLite Status
 
 This tool reads public data from the CRLite service to provide some useful status pertaining to recent runs.

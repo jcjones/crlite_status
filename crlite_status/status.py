@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import io
 import itertools
@@ -54,7 +52,7 @@ class FileNotFoundException(Exception):
     pass
 
 
-def _item_to_value(iterator, item):
+def _item_to_value(_, item):
     return item
 
 
@@ -168,40 +166,25 @@ def main():
             "knownnotrevoked": None,
             "timestamp": None,
             "coverage_period": None,
+            "stash_num_issuers": None,
         }
-        stats = json.loads(
-            download_from_google_cloud_to_string(
-                get_bucket_url(args), Path(run_id) / "mlbf" / "stats.json"
-            )
-        )
-        run_data["filter_layers"] = f"{stats['mlbf_layers']}"
 
-        if "knownrevoked" in stats:
-            run_data["knownrevoked"] = f"{stats['knownrevoked']:,}"
-
-        if "knownnotrevoked" in stats:
-            run_data["knownnotrevoked"] = f"{stats['knownnotrevoked']:,}"
-
-        if "mlbf_filesize" in stats:
-            run_data["filter_size"] = size_to_str(stats["mlbf_filesize"])
-        else:
+        try:
             filter_metadata = metadata_from_google_cloud(
                 get_bucket_url(args), Path(run_id) / "mlbf" / "filter"
             )
             run_data["filter_size"] = size_to_str(filter_metadata["size"])
+        except FileNotFoundException:
+            pass
 
-        if "stash_filesize" in stats:
-            run_data["stash_size"] = size_to_str(stats["stash_filesize"])
-            run_data["stash_num_issuers"] = str(stats["stash_num_issuers"])
-        else:
-            try:
-                stash_metadata = metadata_from_google_cloud(
-                    get_bucket_url(args), Path(run_id) / "mlbf" / "filter.stash"
-                )
-                run_data["stash_size"] = size_to_str(stash_metadata["size"])
-                run_data["stash_num_issuers"] = "n/a"
-            except FileNotFoundException:
-                pass
+        try:
+            stash_metadata = metadata_from_google_cloud(
+                get_bucket_url(args), Path(run_id) / "mlbf" / "filter.stash"
+            )
+            run_data["stash_size"] = size_to_str(stash_metadata["size"])
+            run_data["stash_num_issuers"] = "n/a"
+        except FileNotFoundException:
+            pass
 
         ts = datetime.fromisoformat(
             download_from_google_cloud_to_string(

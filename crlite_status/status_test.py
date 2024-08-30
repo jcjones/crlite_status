@@ -1,5 +1,5 @@
 import unittest
-import status
+from crlite_status import status
 
 
 class TestStructs(unittest.TestCase):
